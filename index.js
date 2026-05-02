@@ -9,6 +9,13 @@ app.get("/", (req, res) => {
   res.send("Ade Wallet API is running 🚀");
 });
 
+// ENV CHECK (IMPORTANT FOR DEBUGGING)
+app.get("/env-check", (req, res) => {
+  res.json({
+    dbExists: !!process.env.DATABASE_URL
+  });
+});
+
 // Create user
 app.post("/user", async (req, res) => {
   try {
