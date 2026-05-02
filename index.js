@@ -68,6 +68,7 @@ app.post("/transfer", async (req, res) => {
 
   res.json({ message: "transfer complete" });
 });
-
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log("Running on " + PORT));
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
