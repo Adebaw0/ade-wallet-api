@@ -12,7 +12,7 @@ const SECRET = "secretkey";
 // HOME
 // =======================
 app.get("/", (req, res) => {
-  res.send("Ade Wallet API is running 🚀");
+  res.send("Fintech API running 🚀");
 });
 
 // =======================
@@ -87,7 +87,7 @@ function auth(req, res, next) {
 }
 
 // =======================
-// CREATE WALLET
+// WALLET CREATE
 // =======================
 app.post("/wallet", auth, async (req, res) => {
   try {
@@ -109,17 +109,15 @@ app.post("/credit", auth, async (req, res) => {
   try {
     const { wallet_id, amount } = req.body;
 
-    const wallet = await db.query(
-      "SELECT * FROM wallets WHERE id=$1",
-      [wallet_id]
-    );
-
-    if (wallet.rows.length === 0)
-      return res.status(404).json({ error: "Wallet not found" });
-
     const updated = await db.query(
       "UPDATE wallets SET balance = balance + $1 WHERE id=$2 RETURNING *",
       [amount, wallet_id]
+    );
+
+    // TRANSACTION LOG
+    await db.query(
+      "INSERT INTO transactions (wallet_id, type, amount, description) VALUES ($1,'credit',$2,'Wallet funded')",
+      [wallet_id, amount]
     );
 
     res.json(updated.rows[0]);
@@ -129,7 +127,7 @@ app.post("/credit", auth, async (req, res) => {
 });
 
 // =======================
-// TRANSFER MONEY
+// TRANSFER
 // =======================
 app.post("/transfer", auth, async (req, res) => {
   try {
@@ -141,7 +139,7 @@ app.post("/transfer", auth, async (req, res) => {
     );
 
     if (sender.rows.length === 0)
-      return res.status(404).json({ error: "Sender wallet not found" });
+      return res.status(404).json({ error: "Sender not found" });
 
     if (sender.rows[0].balance < amount)
       return res.status(400).json({ error: "Insufficient balance" });
@@ -156,7 +154,34 @@ app.post("/transfer", auth, async (req, res) => {
       [amount, to_wallet]
     );
 
+    // TRANSACTIONS LOG
+    await db.query(
+      "INSERT INTO transactions (wallet_id, type, amount, description) VALUES ($1,'debit',$2,'Transfer sent')",
+      [from_wallet, amount]
+    );
+
+    await db.query(
+      "INSERT INTO transactions (wallet_id, type, amount, description) VALUES ($1,'credit',$2,'Transfer received')",
+      [to_wallet, amount]
+    );
+
     res.json({ message: "Transfer successful" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// =======================
+// TRANSACTION HISTORY
+// =======================
+app.get("/transactions/:wallet_id", auth, async (req, res) => {
+  try {
+    const result = await db.query(
+      "SELECT * FROM transactions WHERE wallet_id=$1 ORDER BY created_at DESC",
+      [req.params.wallet_id]
+    );
+
+    res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
