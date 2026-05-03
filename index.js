@@ -6,7 +6,11 @@ const jwt = require("jsonwebtoken");
 const app = express();
 app.use(express.json());
 
-// Home route
+const SECRET = "secretkey";
+
+// =======================
+// HOME
+// =======================
 app.get("/", (req, res) => {
   res.send("Ade Wallet API is running 🚀");
 });
@@ -18,14 +22,14 @@ app.post("/register", async (req, res) => {
   try {
     const { name, phone, password } = req.body;
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashed = await bcrypt.hash(password, 10);
 
-    const result = await db.query(
-      "INSERT INTO users (name, phone, password) VALUES ($1, $2, $3) RETURNING id, name, phone",
-      [name, phone, hashedPassword]
+    const user = await db.query(
+      "INSERT INTO users (name, phone, password) VALUES ($1,$2,$3) RETURNING id,name,phone",
+      [name, phone, hashed]
     );
 
-    res.json(result.rows[0]);
+    res.json(user.rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -39,23 +43,21 @@ app.post("/login", async (req, res) => {
     const { phone, password } = req.body;
 
     const user = await db.query(
-      "SELECT * FROM users WHERE phone = $1",
+      "SELECT * FROM users WHERE phone=$1",
       [phone]
     );
 
-    if (user.rows.length === 0) {
+    if (user.rows.length === 0)
       return res.status(400).json({ error: "User not found" });
-    }
 
     const valid = await bcrypt.compare(password, user.rows[0].password);
 
-    if (!valid) {
+    if (!valid)
       return res.status(400).json({ error: "Wrong password" });
-    }
 
     const token = jwt.sign(
       { id: user.rows[0].id },
-      "secretkey",
+      SECRET,
       { expiresIn: "1d" }
     );
 
@@ -69,15 +71,15 @@ app.post("/login", async (req, res) => {
 // AUTH MIDDLEWARE
 // =======================
 function auth(req, res, next) {
-  const token = req.headers.authorization;
-
-  if (!token) {
-    return res.status(401).json({ error: "No token" });
-  }
-
   try {
-    const decoded = jwt.verify(token, "secretkey");
+    const token = req.headers.authorization;
+
+    if (!token)
+      return res.status(401).json({ error: "No token" });
+
+    const decoded = jwt.verify(token, SECRET);
     req.user = decoded;
+
     next();
   } catch {
     res.status(401).json({ error: "Invalid token" });
@@ -85,57 +87,76 @@ function auth(req, res, next) {
 }
 
 // =======================
-// WALLET
+// CREATE WALLET
 // =======================
 app.post("/wallet", auth, async (req, res) => {
   try {
-    const result = await db.query(
-      "INSERT INTO wallets (user_id, balance, currency) VALUES ($1, 0, 'NGN') RETURNING *",
+    const wallet = await db.query(
+      "INSERT INTO wallets (user_id, balance, currency) VALUES ($1,0,'NGN') RETURNING *",
       [req.user.id]
     );
 
-    res.json(result.rows[0]);
+    res.json(wallet.rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 // =======================
-// CREDIT
+// CREDIT WALLET
 // =======================
 app.post("/credit", auth, async (req, res) => {
   try {
     const { wallet_id, amount } = req.body;
 
-    await db.query(
-      "UPDATE wallets SET balance = balance + $1 WHERE id = $2",
+    const wallet = await db.query(
+      "SELECT * FROM wallets WHERE id=$1",
+      [wallet_id]
+    );
+
+    if (wallet.rows.length === 0)
+      return res.status(404).json({ error: "Wallet not found" });
+
+    const updated = await db.query(
+      "UPDATE wallets SET balance = balance + $1 WHERE id=$2 RETURNING *",
       [amount, wallet_id]
     );
 
-    res.json({ message: "credited" });
+    res.json(updated.rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 // =======================
-// TRANSFER
+// TRANSFER MONEY
 // =======================
 app.post("/transfer", auth, async (req, res) => {
   try {
-    const { from, to, amount } = req.body;
+    const { from_wallet, to_wallet, amount } = req.body;
+
+    const sender = await db.query(
+      "SELECT * FROM wallets WHERE id=$1",
+      [from_wallet]
+    );
+
+    if (sender.rows.length === 0)
+      return res.status(404).json({ error: "Sender wallet not found" });
+
+    if (sender.rows[0].balance < amount)
+      return res.status(400).json({ error: "Insufficient balance" });
 
     await db.query(
-      "UPDATE wallets SET balance = balance - $1 WHERE id = $2",
-      [amount, from]
+      "UPDATE wallets SET balance = balance - $1 WHERE id=$2",
+      [amount, from_wallet]
     );
 
     await db.query(
-      "UPDATE wallets SET balance = balance + $1 WHERE id = $2",
-      [amount, to]
+      "UPDATE wallets SET balance = balance + $1 WHERE id=$2",
+      [amount, to_wallet]
     );
 
-    res.json({ message: "transfer complete" });
+    res.json({ message: "Transfer successful" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -144,7 +165,7 @@ app.post("/transfer", auth, async (req, res) => {
 // =======================
 // START SERVER
 // =======================
-const PORT = process.env.PORT;
+const PORT = process.env.PORT || 8080;
 
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT}`);
