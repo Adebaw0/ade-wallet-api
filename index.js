@@ -11,15 +11,8 @@ app.get("/", (req, res) => {
   res.send("Ade Wallet API is running 🚀");
 });
 
-// ENV check
-app.get("/env-check", (req, res) => {
-  res.json({
-    dbExists: !!process.env.DATABASE_URL
-  });
-});
-
 // =========================
-// REGISTER (PHONE + PASSWORD)
+// REGISTER
 // =========================
 app.post("/register", async (req, res) => {
   try {
@@ -92,7 +85,7 @@ function auth(req, res, next) {
 }
 
 // =========================
-// CREATE WALLET (PROTECTED)
+// WALLET
 // =========================
 app.post("/wallet", auth, async (req, res) => {
   try {
@@ -117,11 +110,6 @@ app.post("/credit", auth, async (req, res) => {
     await db.query(
       "UPDATE wallets SET balance = balance + $1 WHERE id = $2",
       [amount, wallet_id]
-    );
-
-    await db.query(
-      "INSERT INTO transactions (wallet_id, type, amount, description) VALUES ($1, 'credit', $2, 'API credit')",
-      [wallet_id, amount]
     );
 
     res.json({ message: "credited" });
@@ -154,10 +142,10 @@ app.post("/transfer", auth, async (req, res) => {
 });
 
 // =========================
-// SERVER START
+// START SERVER (IMPORTANT FIX)
 // =========================
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT;
 
-app.listen(PORT, () => {
+app.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT}`);
 });
