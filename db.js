@@ -5,13 +5,8 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-(async () => {
-  try {
-    await pool.query("SELECT NOW()");
-    console.log("✅ Connected to database");
-  } catch (err) {
-    console.error("❌ DB ERROR:", err.message);
-  }
-})();
+pool.query("SELECT NOW()")
+  .then(() => console.log("✅ Connected to database"))
+  .catch(err => console.error("❌ DB error:", err.message));
 
 module.exports = pool;
