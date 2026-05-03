@@ -16,7 +16,7 @@ app.get("/env-check", (req, res) => {
   });
 });
 
-// Create user (DEBUG VERSION)
+// Create user
 app.post("/user", async (req, res) => {
   try {
     const { name, email } = req.body;
@@ -28,8 +28,7 @@ app.post("/user", async (req, res) => {
 
     res.json(result.rows[0]);
   } catch (err) {
-    console.error("USER ERROR:", err);
-
+    console.error("USER ERROR:", err.message);
     res.status(500).json({
       error: err.message,
       code: err.code || null
@@ -49,8 +48,8 @@ app.post("/wallet", async (req, res) => {
 
     res.json(result.rows[0]);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to create wallet" });
+    console.error(err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -71,8 +70,8 @@ app.post("/credit", async (req, res) => {
 
     res.json({ message: "credited" });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to credit wallet" });
+    console.error(err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -103,8 +102,8 @@ app.post("/transfer", async (req, res) => {
 
     res.json({ message: "transfer complete" });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Transfer failed" });
+    console.error(err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 
