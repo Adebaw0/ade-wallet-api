@@ -5,7 +5,7 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-// FORCE connection test
+// Test connection once at startup
 (async () => {
   try {
     await pool.query("SELECT NOW()");
@@ -15,6 +15,4 @@ const pool = new Pool({
   }
 })();
 
-module.exports = {
-  query: (text, params) => pool.query(text, params),
-};
+module.exports = pool;
