@@ -5,13 +5,12 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-// Test DB connection
 (async () => {
   try {
     await pool.query("SELECT NOW()");
     console.log("✅ Connected to database");
   } catch (err) {
-    console.error("❌ DB CONNECTION FAILED:", err.message);
+    console.error("❌ DB ERROR:", err.message);
   }
 })();
 
