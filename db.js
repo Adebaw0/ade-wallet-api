@@ -5,7 +5,7 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-// Test connection once at startup
+// Test DB connection
 (async () => {
   try {
     await pool.query("SELECT NOW()");
