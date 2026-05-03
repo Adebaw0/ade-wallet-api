@@ -4,12 +4,15 @@ const db = require("./db");
 const app = express();
 app.use(express.json());
 
+// DEBUG: check if Railway is injecting env variable
+console.log("DATABASE_URL EXISTS:", !!process.env.DATABASE_URL);
+
 // Health check
 app.get("/", (req, res) => {
   res.send("Ade Wallet API is running 🚀");
 });
 
-// ENV CHECK (IMPORTANT FOR DEBUGGING)
+// ENV CHECK
 app.get("/env-check", (req, res) => {
   res.json({
     dbExists: !!process.env.DATABASE_URL
