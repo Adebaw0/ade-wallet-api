@@ -111,6 +111,14 @@ app.post("/credit", auth, async (req, res) => {
   try {
     const { wallet_id, amount } = req.body;
 
+    const wallet = await db.query(
+      "SELECT * FROM wallets WHERE id=$1 AND user_id=$2",
+      [wallet_id, req.user.id]
+    );
+
+    if (wallet.rows.length === 0)
+      return res.status(403).json({ error: "Not your wallet" });
+
     const updated = await db.query(
       "UPDATE wallets SET balance = balance + $1 WHERE id=$2 RETURNING *",
       [amount, wallet_id]
@@ -128,36 +136,52 @@ app.post("/credit", auth, async (req, res) => {
 });
 
 // =======================
-// TRANSFER
+// SECURE TRANSFER
 // =======================
 app.post("/transfer", auth, async (req, res) => {
   try {
-    const { from_wallet, to_wallet, amount } = req.body;
+    const { to_wallet, amount } = req.body;
 
-    const sender = await db.query(
-      "SELECT * FROM wallets WHERE id=$1",
-      [from_wallet]
+    // Get sender wallet (SECURE)
+    const senderWallet = await db.query(
+      "SELECT * FROM wallets WHERE user_id=$1",
+      [req.user.id]
     );
 
-    if (sender.rows.length === 0)
-      return res.status(404).json({ error: "Sender not found" });
+    if (senderWallet.rows.length === 0)
+      return res.status(404).json({ error: "Sender wallet not found" });
 
-    if (Number(sender.rows[0].balance) < Number(amount))
+    const from_wallet = senderWallet.rows[0];
+
+    // Get receiver wallet
+    const receiverWallet = await db.query(
+      "SELECT * FROM wallets WHERE id=$1",
+      [to_wallet]
+    );
+
+    if (receiverWallet.rows.length === 0)
+      return res.status(404).json({ error: "Receiver not found" });
+
+    // Check balance
+    if (Number(from_wallet.balance) < Number(amount))
       return res.status(400).json({ error: "Insufficient balance" });
 
+    // Deduct sender
     await db.query(
       "UPDATE wallets SET balance = balance - $1 WHERE id=$2",
-      [amount, from_wallet]
+      [amount, from_wallet.id]
     );
 
+    // Credit receiver
     await db.query(
       "UPDATE wallets SET balance = balance + $1 WHERE id=$2",
       [amount, to_wallet]
     );
 
+    // Transactions
     await db.query(
       "INSERT INTO transactions (wallet_id, type, amount, description) VALUES ($1,'debit',$2,'Transfer sent')",
-      [from_wallet, amount]
+      [from_wallet.id, amount]
     );
 
     await db.query(
@@ -165,7 +189,8 @@ app.post("/transfer", auth, async (req, res) => {
       [to_wallet, amount]
     );
 
-    res.json({ message: "Transfer successful" });
+    res.json({ message: "Transfer successful (secured)" });
+
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -177,8 +202,8 @@ app.post("/transfer", auth, async (req, res) => {
 app.get("/balance/:wallet_id", auth, async (req, res) => {
   try {
     const result = await db.query(
-      "SELECT id,user_id,balance,currency FROM wallets WHERE id=$1",
-      [req.params.wallet_id]
+      "SELECT * FROM wallets WHERE id=$1 AND user_id=$2",
+      [req.params.wallet_id, req.user.id]
     );
 
     if (result.rows.length === 0)
@@ -195,8 +220,16 @@ app.get("/balance/:wallet_id", auth, async (req, res) => {
 // =======================
 app.get("/transactions/:wallet_id", auth, async (req, res) => {
   try {
+    const walletCheck = await db.query(
+      "SELECT * FROM wallets WHERE id=$1 AND user_id=$2",
+      [req.params.wallet_id, req.user.id]
+    );
+
+    if (walletCheck.rows.length === 0)
+      return res.status(403).json({ error: "Not your wallet" });
+
     const result = await db.query(
-      "SELECT id,type,amount,description,created_at FROM transactions WHERE wallet_id=$1 ORDER BY created_at DESC",
+      "SELECT * FROM transactions WHERE wallet_id=$1 ORDER BY created_at DESC",
       [req.params.wallet_id]
     );
 
@@ -204,6 +237,7 @@ app.get("/transactions/:wallet_id", auth, async (req, res) => {
       count: result.rows.length,
       transactions: result.rows
     });
+
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
