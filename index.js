@@ -6,14 +6,14 @@ const jwt = require("jsonwebtoken");
 const app = express();
 app.use(express.json());
 
-// Health check
+// Home route
 app.get("/", (req, res) => {
   res.send("Ade Wallet API is running 🚀");
 });
 
-// =========================
+// =======================
 // REGISTER
-// =========================
+// =======================
 app.post("/register", async (req, res) => {
   try {
     const { name, phone, password } = req.body;
@@ -31,9 +31,9 @@ app.post("/register", async (req, res) => {
   }
 });
 
-// =========================
+// =======================
 // LOGIN
-// =========================
+// =======================
 app.post("/login", async (req, res) => {
   try {
     const { phone, password } = req.body;
@@ -65,9 +65,9 @@ app.post("/login", async (req, res) => {
   }
 });
 
-// =========================
+// =======================
 // AUTH MIDDLEWARE
-// =========================
+// =======================
 function auth(req, res, next) {
   const token = req.headers.authorization;
 
@@ -84,9 +84,9 @@ function auth(req, res, next) {
   }
 }
 
-// =========================
+// =======================
 // WALLET
-// =========================
+// =======================
 app.post("/wallet", auth, async (req, res) => {
   try {
     const result = await db.query(
@@ -100,9 +100,9 @@ app.post("/wallet", auth, async (req, res) => {
   }
 });
 
-// =========================
-// CREDIT WALLET
-// =========================
+// =======================
+// CREDIT
+// =======================
 app.post("/credit", auth, async (req, res) => {
   try {
     const { wallet_id, amount } = req.body;
@@ -118,9 +118,9 @@ app.post("/credit", auth, async (req, res) => {
   }
 });
 
-// =========================
+// =======================
 // TRANSFER
-// =========================
+// =======================
 app.post("/transfer", auth, async (req, res) => {
   try {
     const { from, to, amount } = req.body;
@@ -141,9 +141,9 @@ app.post("/transfer", auth, async (req, res) => {
   }
 });
 
-// =========================
-// START SERVER (IMPORTANT FIX)
-// =========================
+// =======================
+// START SERVER
+// =======================
 const PORT = process.env.PORT;
 
 app.listen(PORT, "0.0.0.0", () => {
