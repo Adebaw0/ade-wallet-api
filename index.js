@@ -87,7 +87,7 @@ function auth(req, res, next) {
 }
 
 // =======================
-// WALLET CREATE
+// CREATE WALLET
 // =======================
 app.post("/wallet", auth, async (req, res) => {
   try {
@@ -114,7 +114,6 @@ app.post("/credit", auth, async (req, res) => {
       [amount, wallet_id]
     );
 
-    // TRANSACTION LOG
     await db.query(
       "INSERT INTO transactions (wallet_id, type, amount, description) VALUES ($1,'credit',$2,'Wallet funded')",
       [wallet_id, amount]
@@ -141,7 +140,7 @@ app.post("/transfer", auth, async (req, res) => {
     if (sender.rows.length === 0)
       return res.status(404).json({ error: "Sender not found" });
 
-    if (sender.rows[0].balance < amount)
+    if (Number(sender.rows[0].balance) < Number(amount))
       return res.status(400).json({ error: "Insufficient balance" });
 
     await db.query(
@@ -154,7 +153,6 @@ app.post("/transfer", auth, async (req, res) => {
       [amount, to_wallet]
     );
 
-    // TRANSACTIONS LOG
     await db.query(
       "INSERT INTO transactions (wallet_id, type, amount, description) VALUES ($1,'debit',$2,'Transfer sent')",
       [from_wallet, amount]
@@ -172,16 +170,38 @@ app.post("/transfer", auth, async (req, res) => {
 });
 
 // =======================
-// TRANSACTION HISTORY
+// BALANCE
+// =======================
+app.get("/balance/:wallet_id", auth, async (req, res) => {
+  try {
+    const result = await db.query(
+      "SELECT id,user_id,balance,currency FROM wallets WHERE id=$1",
+      [req.params.wallet_id]
+    );
+
+    if (result.rows.length === 0)
+      return res.status(404).json({ error: "Wallet not found" });
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// =======================
+// TRANSACTIONS
 // =======================
 app.get("/transactions/:wallet_id", auth, async (req, res) => {
   try {
     const result = await db.query(
-      "SELECT * FROM transactions WHERE wallet_id=$1 ORDER BY created_at DESC",
+      "SELECT id,type,amount,description,created_at FROM transactions WHERE wallet_id=$1 ORDER BY created_at DESC",
       [req.params.wallet_id]
     );
 
-    res.json(result.rows);
+    res.json({
+      count: result.rows.length,
+      transactions: result.rows
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
