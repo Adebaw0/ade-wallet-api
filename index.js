@@ -4,9 +4,6 @@ const db = require("./db");
 const app = express();
 app.use(express.json());
 
-// DEBUG: check if Railway is injecting env variable
-console.log("DATABASE_URL EXISTS:", !!process.env.DATABASE_URL);
-
 // Health check
 app.get("/", (req, res) => {
   res.send("Ade Wallet API is running 🚀");
@@ -19,7 +16,7 @@ app.get("/env-check", (req, res) => {
   });
 });
 
-// Create user
+// Create user (DEBUG VERSION)
 app.post("/user", async (req, res) => {
   try {
     const { name, email } = req.body;
@@ -31,8 +28,12 @@ app.post("/user", async (req, res) => {
 
     res.json(result.rows[0]);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to create user" });
+    console.error("USER ERROR:", err);
+
+    res.status(500).json({
+      error: err.message,
+      code: err.code || null
+    });
   }
 });
 
