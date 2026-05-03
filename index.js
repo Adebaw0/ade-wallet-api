@@ -72,10 +72,12 @@ app.post("/login", async (req, res) => {
 // =======================
 function auth(req, res, next) {
   try {
-    const token = req.headers.authorization;
+    const authHeader = req.headers.authorization;
 
-    if (!token)
+    if (!authHeader)
       return res.status(401).json({ error: "No token" });
+
+    const token = authHeader.split(" ")[1];
 
     const decoded = jwt.verify(token, SECRET);
     req.user = decoded;
